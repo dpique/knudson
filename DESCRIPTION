@@ -1,11 +1,14 @@
 Package: knudson
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Data For Knudson's Two Hit Hypothesis
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Author: Daniel Pique
+Maintainer: Daniel Pique <daniel.pique@med.einstein.yu.edu>
+Description: Provides tabular data from Knudson's seminal papers.
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 6.1.1
