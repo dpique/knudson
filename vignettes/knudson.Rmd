@@ -1,13 +1,13 @@
 ---
-title: "Revisiting Knudson's 2 Hit Hypothesis: A Lesson in Data Reproducibility"
-author: "Daniel Pique"
-date: "`r Sys.Date()`"
+title: "knudson" 
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{knudson}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
+
+## Revisiting Knudson's 2 Hit Hypothesis: A Lesson in Data Reproducibility"
 
 Knudson's ["Mutation and cancer: statistical study of retinoblastoma"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC389051/) (1971) forms the basis for the 2-hit hypothesis in cancer and has 8000+ citations in the biomedical literature.
 
@@ -38,7 +38,6 @@ library(patchwork)
 library(png)
 library(knitr)
 library(kableExtra)
-
 ```
 
 ## Looking at Table 1
@@ -46,7 +45,7 @@ library(kableExtra)
 Let's load a screenshot of Table 1 taken from the original article. We'll also peek at a machine readable form of the Table 1, `k`.
 
 
-```{r , fig.height = 4, fig.width = 7}
+```{r, echo=FALSE, fig.height = 4, fig.width = 7}
 t1_png <- png::readPNG("knudson_tab1_1971_PNAS.png")
 
 t1_png_gg <- ggplot() +  
@@ -56,6 +55,9 @@ t1_png_gg <- ggplot() +
                     -Inf, Inf, -Inf, Inf)
 t1_png_gg
 
+```
+
+```{r}
 # `k` is a machine-readable version of Table 1 
 kable(knudson::k) %>%
   kable_styling(position="center") %>%
@@ -66,7 +68,7 @@ kable(knudson::k) %>%
 ## Comparing Figure 1 with Table 1
 
 Let's load a screenshot of Figure 1 taken from Knudson, 1971. I've added the word "Original" to the top of the figure so that we know it's the figure directly from the manuscript.
-```{r, echo = TRUE, fig.height = 6, fig.width = 4.5}
+```{r, echo = FALSE, fig.height = 6, fig.width = 4.5}
 knud_png <- png::readPNG("knudson_fig1_1971_PNAS.png")
 
 fig1_orig <- ggplot() +  
@@ -84,7 +86,7 @@ To make sure we have the right number of data points, let's count the number of 
 
 I've annotated a screenshot of Figure 1 to count the number of points: 
 
-```{r, fig.height = 6, fig.width = 4.5}
+```{r, echo = FALSE, fig.height = 6, fig.width = 4.5}
 knud_png_annot <- png::readPNG("knudson_fig1_1971_PNAS_annot.png")
 
 knud_fig1_annot <- ggplot() +  
@@ -147,11 +149,11 @@ fig1 <- ggplot(k2, aes(x=age_at_dx, y = prop_of_tot, group=side, shape=side)) +
 
 k2_missing <- k2 %>% filter(age_at_dx >= 60 | {age_at_dx == 47 & side == "unilat"})
 
-fig1_missing <- fig1 + 
+fig1_w_missing <- fig1 + 
   geom_point(data = k2_missing, aes(x=age_at_dx, y = prop_of_tot), pch=21, fill=NA, color = "red", size=4.5)
 
 
-fig1_missing + fig1_orig + plot_layout(widths = c(1, 1.35))
+fig1_w_missing + fig1_orig + plot_layout(widths = c(1, 1.45))
 ```
 
 Not bad. We can see that the figure is largely reproducible. However, there are a few differences that we'll highlight in the following sections.
@@ -162,9 +164,9 @@ If we look closely, there are 3 data points (highlighted with red circles) in th
 
   - First, look along the base of the x-axis in the reproduced figure above. Two data points from patients age >=60 -- the oldest patients to have been diagnosed from each group -- are missing. 
   
-  - Note that in the original figure, the x-axis stops at 60, which can explain for the first two missing data points. 
+  - Note that in the original figure, the x-axis stops at 60, which can explain for the first two missing data points. Perhaps Knudson intentionally excluded these two data points whose y value equals 0, as plotting a 0 value on a log scale is difficult (because log(0) is undefined). 
   
-  - Perhaps Knudson chose to exclude these data points where the y value equals 0, as plotting a 0 value on a log scale is difficult (because log(0) is undefined). Also, in the reproduced plot, R plots the top half of these two data points, when really they should not be showing up here at 0.01 (their value equals 0).
+  - For some reason, in the reproduced plot, R plots the top half of these two data points, when really they should not be showing up here at 0.01 (their y value equals 0).
 
   - A third data point for unilateral retinoblastoma patient 08997, age 47 months, is also missing. However, the reason why this data point is missing is unclear.
 
@@ -174,7 +176,7 @@ If we look closely, there are 3 data points (highlighted with red circles) in th
 The black solid line in the reproduced plot above describes data from bilateral cases and could be reproduced exactly. This equation corresponds to the line $logS = -t/30$, as described in the figure 1 legend:
 
 
-```{r, fig.height = 1, fig.width = 4}
+```{r, echo = FALSE, fig.height = 1, fig.width = 4}
 knud_fig1_lgnd <- png::readPNG("knudson_fig1_legend.png")
 
 knud_fig1_lgnd_plt <- ggplot() +  

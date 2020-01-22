@@ -1,14 +1,20 @@
 Package: knudson
 Type: Package
-Title: Data For Knudson's Two Hit Hypothesis
+Title: Data from Table 1 of Knudson, 1971 (The Two-Hit Hypothesis of Cancer)
 Version: 0.1.0
 Author: Daniel Pique
 Maintainer: Daniel Pique <daniel.pique@med.einstein.yu.edu>
-Description: Provides tabular data from Knudson's seminal papers.
-License: What license is it under?
+Description: The knudson package provides data from Table 1 from Alfred Knudson's seminal 1971 paper, Mutation and cancer: statistical study of retinoblastoma, which provided the basis for the two-hit hypothesis of cancer. 
+License: CC0
 Encoding: UTF-8
 LazyData: true
-Suggests: knitr,
+Imports:
+    tidyverse,
+    patchwork,
+    png,
+    knitr,
+    kableExtra,
+Suggests:
     rmarkdown
 VignetteBuilder: knitr
 RoxygenNote: 6.1.1
