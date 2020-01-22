@@ -12,7 +12,7 @@ vignette: >
 Knudson's ["Mutation and cancer: statistical study of retinoblastoma"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC389051/) (1971) forms the basis for the 2-hit hypothesis in cancer and has 8000+ citations in the biomedical literature. Here, I attempt to reproduce [Figure 1](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC389051/?page=4) from this paper using the data provided in [Table 1](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC389051/?page=2), which is also provided within this package as the object `k`. 
 
 
-## Load the `knudson` library and look at Table 1
+## Loading the `knudson` library
 
 We'll also load some other packages that we'll need for the rest of the analysis. 
 
@@ -35,7 +35,14 @@ library(png)
 library(knitr)
 library(kableExtra)
 
+```
 
+## Looking at Table 1
+
+Let's load a screenshot of Table 1 taken from the original article. We'll also peek at a machine readable form of the table, `k`, that is included in the `knudson` package.
+
+
+```{r , fig.height = 4, fig.width = 7}
 t1_png <- png::readPNG("knudson_tab1_1971_PNAS.png")
 
 t1_png_gg <- ggplot() +  
@@ -52,9 +59,9 @@ kable(knudson::k) %>%
 
 ```
 
+## Comparing Figure 1 with Table 1
 
-Now, let's take a look at figure 1 and compare it with the data in Table 1.
-
+Let's load a screenshot of Figure 1 taken from the original article. 
 ```{r, echo = TRUE, fig.height = 6, fig.width = 4.5}
 knud_png <- png::readPNG("knudson_fig1_1971_PNAS.png")
 
@@ -67,7 +74,9 @@ fig1_orig <- ggplot() +
 fig1_orig
 ```
 
-Of note, it seems that the x-axis in Figure 1 ends at 60 months. However, there are 2 patients in Table 1 who are diagnosed at or after age 60 months. To make sure, let's count the number of data points represented in this figure.
+Of note, the x-axis in Figure 1 ends at 60 months. However, there are 2 patients in Table 1 who are diagnosed at or after age 60 months. 
+
+To make sure, let's count the number of data points represented in this figure and compare with the expected number of data points. I've included an annotated screenshot of Figure 1 that counts the number of points.  
 
 ```{r, fig.height = 6, fig.width = 4.5}
 knud_png_annot <- png::readPNG("knudson_fig1_1971_PNAS_annot.png")
@@ -80,7 +89,7 @@ knud_fig1_annot <- ggplot() +
 knud_fig1_annot
 ```
 
-We observe that there are fewer data points than are listed in the legend (20 unilateral and 17 bilateral cases compared with the expected 25 and 23, respectively).
+There are fewer data points than expected based on the legend (20 unilateral and 17 bilateral cases compared with 25 and 23 expected, respectively).
 
 Why are there fewer points in the plot than expected? The y-axis reports the "fraction of cases not yet diagnosed at the age indicated." Therefore, it is possible that the author collapsed cases occuring in the same month into a single data point. 
 
@@ -129,59 +138,45 @@ fig1 <- ggplot(k2, aes(x=age_at_dx, y = prop_of_tot, group=side, shape=side)) +
 k2_missing <- k2 %>% filter(age_at_dx >= 60 | {age_at_dx == 47 & side == "unilat"})
 
 fig1_missing <- fig1 + 
-  geom_point(data = k2_missing, aes(x=age_at_dx, y = prop_of_tot), pch=21, fill=NA, color = "red", size=4)
+  geom_point(data = k2_missing, aes(x=age_at_dx, y = prop_of_tot), pch=21, fill=NA, color = "red", size=4.5)
 
 
 fig1_missing + fig1_orig + plot_layout(widths = c(1, 1.35))
 ```
 
 
-## What happens when we compare this figure to the original figure?
+## Missing data
 
-We notice that there are 3 datapoints (red circles) missing from Figure 1. Two datapoints from patients age >=60 are missing, and a third datapoint for unilateral retinoblastoma patient 08997, age 47 months, is also missing. 
+There are 3 data points (red circles) missing from the original Figure 1. 
 
-```{r, fig.height = 6, fig.width = 8}
+Two data points from patients age >=60 (look along the base of the x-axis) are missing, and a third data point for unilateral retinoblastoma patient 08997, age 47 months, is also missing. 
+The x-axis stops at 60 in the original figure and can account for the two missing data points.
 
-k2_missing <- k2 %>% filter(age_at_dx >= 60 | {age_at_dx == 47 & side == "unilat"})
+## Fitted curves
 
-fig1_missing <- fig1 + 
-  geom_rect(mapping = aes(xmin=0.1, xmax=60, ymin=0.01, ymax=1), fill=NA, color="red", linetype = 2) + 
-  geom_point(data = k2_missing, aes(x=age_at_dx, y = prop_of_tot), pch=21, fill=NA, color = "red", size=4)
+We also note that the curve $logS = -4 \times 10^{-4}t^2$ (black dotted line) is a much better fit than the curve $logS = -4 * 10^{-5}t^2$ (red dotted line) reported in the paper, suggesting that the exponent from the equation reported in the paper is incorrect. Let's take a look:
 
-fig1_missing + 
-  fig1_orig + 
-  plot_layout(widths = c(1, 1.35))
-
+```{r, fig.height = 6, fig.width = 4}
+fig1 + 
+  stat_function(fun = function(t) -4 * 10^{-5} *t^2, linetype="longdash", color="red")
 ```
 
 
-We also produce a plot with each point annotated, and compare this to a manually annotated version of the original figure:
-```{r fig.height = 6, fig.width = 8}
-k3 <- k2 %>% 
-  ungroup %>% 
-  group_by(side) %>% 
-  arrange(age_at_dx) %>% 
-  mutate(idx = 1:n())
+## Conclusions
 
-fig1_annot <- fig1 +
-  geom_text(data=k3, aes(label = idx), size=3, nudge_x = 2) +   
-  scale_x_continuous(breaks = seq(0,60, 10), 
-                     limits = c(-0.1, 80), 
-                     expand = c(0, 0))
-  
-fig1_annot + 
-  knud_fig1_annot + 
-  plot_layout(widths = c(1, 1.35))
+- This vignette highlights the importance of data reproducibility in the scientific literature.
 
-```
+- Figure 1 from Knusdon 1971 is mostly reproducibile.  
+
+- However, there are some inconsistencies between the data reported in Table 1 and the data plotted in Figure 1. 3 data points included in the dataset were missing from the Figure, partly due to an x-axis that was not sufficiently wide.
+
+- The fitted curve for the unilateral cases has an error in the exponent.
+
+- These inconsistencies do not change the conclusions of this paper.
+
+- Peer review is important! Notice that this paper was ['communicated'](https://www.pnas.org/content/106/37/15518) to PNAS. This means that it was 'believed... (by a NAS member)... to be of sufficient significance to warrant publication.' Basically, this paper did not undergo standard peer review, which opens the door for the unchecked mistakes we observed.
+(Fortunately, PNAS [discontinued communicated manuscripts](https://www.pnas.org/content/106/37/15518) in 2010)
 
 
-We note that the curve $logS = -4 \times 10^{-4}t^2$ is a better fit than the curve $logS = -4 * 10^{-5} *t^2$ reported in the paper, suggesting that the exponent reported in the paper is off by an order of magnitude. 
 
-
-## Conclusion
-
-This vignette highlights the importance of data reproducibility in the scientific literature.
-
-We also notice that this paper was ['communicated'](https://www.pnas.org/content/106/37/15518) to PNAS, meaning that it was 'believed... (by a NAS member)... to be of sufficient significance to warrant publication.' This means that it did not undergo the standard rigorous process of peer review that generally involves 2-3 field experts.
 
