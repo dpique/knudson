@@ -1,5 +1,5 @@
 ---
-title: "knudson"
+title: "Revisiting Knudson's 2 Hit Hypothesis: A Lesson in Data Reproducibility"
 author: "Daniel Pique"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
@@ -9,211 +9,171 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-Knudson's "Mutation and cancer: statistical study of retinoblastoma" (1971) has 7900+ citations in the biomedical literature. Here, I recreate the lone figure in this paper and release a package containing the data from table 1 in this paper. The I show why statistics and reproducibility needs to be a part of the curriculum in medical schools and graduate schools.
-
-The purpose of this package is to provide data from 2 seminal papers published by Alfred Knudson. The first, entitled "Mutation and Cancer: Statistical Study of Retinoblastoma," was published in 1971 in PNAS. This paper has 7900+ citations and forms the basis for the 2-hit hypothesis in cancer. The data from table 1 of this paper is stored in the object `k`. 
-
-A second paper, entitled "Mutation and Cancer: A Model for Wilms' Tumor of the Kidney," followed shortly thereafter in 1972 and confirmed the findings from the 1971 paper. The authors were Alfred G. Knudson and Louise Strons. The data from Table 1 in this paper is stored in the object `w`.
-
-We notice that this paper was ['communicated'](https://www.pnas.org/content/106/37/15518) to PNAS, meaning that it was 'believed... (by a NAS member)... to be of sufficient significance to warrant publication.' This means that it did not undergo the standard rigorous process of peer review that generally involves 2-3 field experts.
+Knudson's ["Mutation and cancer: statistical study of retinoblastoma"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC389051/) (1971) forms the basis for the 2-hit hypothesis in cancer and has 8000+ citations in the biomedical literature. Here, I attempt to reproduce [Figure 1](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC389051/?page=4) from this paper using the data provided in [Table 1](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC389051/?page=2), which is also provided within this package as the object `k`. 
 
 
+## Loading the `knudson` library
+
+We'll also load some other packages that we'll need for the rest of the analysis. 
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  warning=FALSE,
+  error=FALSE, 
+  message=FALSE
 )
 ```
 
 
-```{r}
+```{r warning=FALSE, error=FALSE, message=FALSE, fig.height = 4, fig.width = 7}
 library(knudson)
 library(tidyverse)
-head(knudson::k)
-head(knudson::w)
+library(patchwork)
+library(png)
+library(knitr)
+library(kableExtra)
 
-ggplot(k, aes(x=side, y= age_at_dx)) + geom_violin() + geom_jitter(alpha=0.5, width=0.1)
+```
+
+## Looking at Table 1
+
+Let's load a screenshot of Table 1 taken from the original article. We'll also peek at a machine readable form of the table, `k`, that is included in the `knudson` package.
+
+
+```{r , fig.height = 4, fig.width = 7}
+t1_png <- png::readPNG("knudson_tab1_1971_PNAS.png")
+
+t1_png_gg <- ggplot() +  
+  annotation_custom(grid::rasterGrob(t1_png, 
+                               width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                    -Inf, Inf, -Inf, Inf)
+t1_png_gg
+
+# `k` is a machine-readable version of Table 1 
+kable(knudson::k) %>%
+  kable_styling(position="center") %>%
+  scroll_box(width = "100%", height = "200px")
+
+```
+
+## Comparing Figure 1 with Table 1
+
+Let's load a screenshot of Figure 1 taken from the original article. 
+```{r, echo = TRUE, fig.height = 6, fig.width = 4.5}
+knud_png <- png::readPNG("knudson_fig1_1971_PNAS.png")
+
+fig1_orig <- ggplot() +  
+  annotation_custom(grid::rasterGrob(knud_png, 
+                               width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                    -Inf, Inf, -Inf, Inf)
+
+fig1_orig
+```
+
+Of note, the x-axis in Figure 1 ends at 60 months. However, there are 2 patients in Table 1 who are diagnosed at or after age 60 months. 
+
+To make sure, let's count the number of data points represented in this figure and compare with the expected number of data points. I've annotated a screenshot of Figure 1 to count the number of points: 
+
+```{r, fig.height = 6, fig.width = 4.5}
+knud_png_annot <- png::readPNG("knudson_fig1_1971_PNAS_annot.png")
+
+knud_fig1_annot <- ggplot() +  
+  annotation_custom(grid::rasterGrob(knud_png_annot, 
+                               width = unit(1,"npc"), 
+                               height = unit(1,"npc")), 
+                    -Inf, Inf, -Inf, Inf)
+knud_fig1_annot
+```
+
+There are fewer data points than expected based on the legend (20 unilateral and 17 bilateral cases compared with 25 and 23 expected, respectively).
+
+Why are there fewer points in the plot than expected? The y-axis reports the "fraction of cases not yet diagnosed at the age indicated." Therefore, it is possible that the author collapsed cases occuring in the same month into a single data point. 
+
+We'll recreate figure 1 with this approach in mind.
+
+
+## Recreating Figure 1
+
+```{r, fig.height = 6, fig.width = 8}
 
 k2 <- k %>%
   arrange(side, -age_at_dx) %>%
   group_by(side) %>%
-  mutate(idx_sum = 1 / length(side)) %>%
-  mutate(prop_of_tot = cumsum(idx_sum))
+  mutate(idx_sum = 1 / length(side), 
+         prop_of_tot = cumsum(idx_sum) - idx_sum) %>%
+  ungroup %>%
+  mutate(side=factor(side, levels=c("unilat", "bilat"))) %>%
+  group_by(side, age_at_dx) %>%
+  ## collapse cases occuring in the same month into a single data point
+  filter(prop_of_tot == min(prop_of_tot)) 
 
 y_axis_seq <- c(0.01, seq(0.02, 0.1, 0.02), seq(0.2, 1, 0.2))
+y_axis_seq_char = format(y_axis_seq, digits=2)
 
-two_hit_fxn <- function(y){
-  abs(log(y, 10)/(-4*10^(-4))) %>% sqrt
-}
-
-log(.2, 10) * -30
-
-(log(.2, 10) / (-4*10^(-4)) ) %>% sqrt
-
-ggplot(k2, aes(x=age_at_dx, y = prop_of_tot, group=side, shape=side)) +
-  
-  geom_abline(intercept = 0, slope = -1/30, color="black", 
-                 linetype="solid", size=0.5) + # can set x limit to 50 here 
-  stat_function(fun = function(t) -4 * 10^{-5} *t^2, linetype="longdash", color="red") + #raise to the 10^ power 
-
-  stat_function(fun = function(t) -5 * 10^{-4} *t^2, linetype="longdash") + #raise to the 10^ power, incorrect from what's listed 
-    stat_function(fun = function(t) -4 * 10^{-4} *t^2, linetype="longdash", color="green") + #raise to the 10^ power, incorrect from what's listed 
-      stat_function(fun = function(t) -3 * 10^{-4} *t^2, linetype="longdash", color="blue") + #raise to the 10^ power, incorrect from what's listed 
-      stat_function(fun = function(t) -3.5 * 10^{-4} *t^2, linetype="longdash", color="purple") + #raise to the 10^ power, incorrect from what's listed 
-
-
-  
-    stat_function(fun = function(t) 2.714^(-4*10^{-5} * t^2), linetype="longdash", color="green") + #raise to the 10^ power, try the log version 
-  geom_hline(yintercept = .1) +
-
-  
+fig1 <- ggplot(k2, aes(x=age_at_dx, y = prop_of_tot, group=side, shape=side)) +
   geom_point() +
-  scale_shape_manual(values=c(22,21)) + 
-  scale_y_log10(breaks= y_axis_seq, 
-                limits = c(0.01, 1), 
-                labels = as.character(gsub("^0\\.", "\\.", y_axis_seq)),
+  scale_shape_manual(values=c(21,22), 
+                     labels=c("Unilateral Cases (25)","Bilateral Cases (23)")) + 
+  scale_y_log10(breaks = y_axis_seq, 
+                limits = c(0.01, 1.04), 
+                labels = as.character(gsub("^0\\.", "\\.", y_axis_seq_char)),
                 expand = c(0, 0)) +
   scale_x_continuous(breaks = seq(0,60, 10), 
                      limits = c(-0.1, 75), 
                      expand = c(0, 0)) +
-  xlab("Age in months") + 
-  ylab("Fract. of cases not yet diagnosed at age indicated") +
-  theme_classic()
+  xlab("AGE IN MONTHS") + 
+  ylab("FRACTION OF CASES NOT YET DIAGNOSED AT AGE INDICATED") +
+  theme_classic() + 
+  theme(aspect.ratio = 1.5, 
+        legend.position = c(0.3,0.16), 
+        legend.title=element_blank()) +
+  ggtitle("Reproduced in R") + geom_abline(intercept = 0, slope = -1/30, color="black", 
+                 linetype="solid", size=0.5) + 
+  stat_function(fun = function(t) -4 * 10^{-4} *t^2, linetype="longdash", color="black")
 
-#calculate the best fit line
+k2_missing <- k2 %>% filter(age_at_dx >= 60 | {age_at_dx == 47 & side == "unilat"})
 
-#add the two curves
-logS = -t/30 # one hit curve
-logS = -4 * 10^{-5} *t^2 #
-logS = -5 * 10^{-4} * t^2 #-5 * 10^{-4} * t^2
-
-```
-
-The original figure is included here:
-[figure 1 knudson 1971 PNAS](img/knudson_fig1_PNAS.png)
-
+fig1_missing <- fig1 + 
+  geom_point(data = k2_missing, aes(x=age_at_dx, y = prop_of_tot), pch=21, fill=NA, color = "red", size=4.5)
 
 
-We note two differences. The first is that the curve $logS = -5 \times 10^{-4}t^2$ is a better fit than the curve $logS = -4 * 10^{-5} *t^2$ reported in the paper, suggesting that these numbers may have been flipped. The second is that knudson reports the use of the natural logarithm, $ln S = -kt^2$, when in fact the graphic shows the use of $log_{10}$.
-
-
-Below, we quantitate the goodness of fit from these different models.
-```{r}
-
-f_log10_2 <- formula(prop_of_tot ~ I(10^(-age_at_dx*0.02607)))
-
-f_log10_2 <- formula(log(prop_of_tot,10) ~ -age_at_dx/30)
-
-#
-f_log10_2 <- formula(prop_of_tot ~ I(10^(-age_at_dx/30)))# logS = -t/30 prop_of_tot ~ 10^-4 * 10^{-5} age_at_dx*^2))
-optim_preds_knud <- predict.lm(object = f_log10_2, newdata = k2.bilat) # %>% {10^.}
-
-preds <- model.frame(formula = f_log10_2, data = k2, subset = side == "bilat") %>% 
-  as_tibble() %>% 
-  mutate(resid = prop_of_tot - `I(10^(-age_at_dx/30))`) #`I(10^(-age_at_dx * 0.02607))`) #
-hist(preds$resid)
-rss <- sum(preds$resid^2)
-rss #knudson's rss
-rss2 <- sum(abs(preds$resid))
-rss2
-
-
-#now, we look at what an optimal rss would be
-#optim_mod <- lm(formula = prop_of_tot ~ I(10^-(age_at_dx/30)), data = k2, subset = side == "bilat")
-k2.bilat <- k2 %>% filter(side == "bilat")
-
-#optim_mod <- lm(formula = I(log(prop_of_tot, 10)) ~ 0 + age_at_dx, data = k2, subset = side == "bilat")
-#optim_mod2 <- lm(formula = k2.bilat$prop_of_tot ~ k2.bilat$age_at_dx), data = k2, subset = side == "bilat")
-
-optim_mod <- lm(formula = prop_of_tot ~ log(age_at_dx,10), data = k2.bilat)
-
-
-optim_mod_int_0 <- lm(formula = log(prop_of_tot,10) ~ age_at_dx + 0, data = k2.bilat)
-
-sum(optim_mod_int_0$residuals^2) #sum of sq
-
-optim_mod <- lm(formula = log(prop_of_tot,10) ~ age_at_dx, data = k2.bilat)
-sum(optim_mod$residuals^2) #sum of sq
-
-optim_mod <- lm(formula = prop_of_tot ~ age_at_dx, data = k2.bilat)
-
-
-# now get the prediction from the model
-optim_preds <- predict.lm(object = optim_mod, 
-                          k2.bilat) #%>% {10^.}
-                            #mutate(prop_of_tot = log(prop_of_tot,10)))  %>% {10^.}
-# now get the observed from the data
-k2.bilat$prop_of_tot
-
-(optim_preds - k2.bilat$prop_of_tot)^2 %>% sum
-#look up RSS on log scale
-
-summary(residuals(optim_mod))
-sum(optim_mod$residuals^2)
-
-
-preds2 <- model.frame(formula = optim_mod, data = k2.bilat) %>%
-  as_tibble() %>% 
-  mutate(prop_of_tot_pred = optim_preds, #10^`log(prop_of_tot, 10)`,
-         prop_of_tot_obs = k2.bilat$prop_of_tot,
-         resids = prop_of_tot_pred - prop_of_tot_obs)
-hist(preds2$resids)
-rss <- sum(preds2$resids^2)
-rss #knudson's rss
-
-ggplot(preds2, aes(x=age_at_dx, y=prop_of_tot_obs)) + 
-         geom_point() +
-      # stat_function(fun = #optim_mod, 
-      #               function(t) .76077 + -0.0723*t,
-      #               linetype="longdash", color="purple") + 
-        stat_function(fun = #optim_mod, 
-                    function(t)  -0.02607*t,
-                    linetype="longdash", color="blue") +
-          stat_function(fun = #optim_mod, 
-                    function(t) -1/30*t,
-                    linetype="longdash", color="green") +
-          stat_function(fun = 
-                    function(t) 1.13 + -0.65177*t,
-                    linetype="longdash", color="orange") +  
-
-  scale_y_log10() #raise to the 10^ power, incorrect from what's listed 
-
-hist(optim_mod$residuals)
-
-sum(optim_mod$residuals^2)
-optim_preds <- predict.lm(object = optim_mod, k2)#model.frame(formula = )
-
-plot(formula = log(prop_of_tot, 10) ~ age_at_dx, data = k2)
-predict(optim_mod, newdata = k2)
-
-
-
-f_log10 <- formula(prop_of_tot ~ 10^-4 * 10^{-5} age_at_dx*^2))
-model.frame(formula = f_log10, data = k2)
-k2
-logS = -4 * 10^{-5} *t^2 #
-logS = -5 * 10^{-4} * t^2 #-5 * 10^{-4} * t^2
-
+fig1_missing + fig1_orig + plot_layout(widths = c(1, 1.35))
 ```
 
 
-Create a test prediction with some synthetic data
-see if I can predict the model
+## Missing data
 
-```{r}
-data ()
+There are 3 data points (red circles) missing from the original Figure 1. 
+
+Two data points from patients age >=60 (look along the base of the x-axis) are missing, and a third data point for unilateral retinoblastoma patient 08997, age 47 months, is also missing. 
+The x-axis stops at 60 in the original figure and can account for the two missing data points.
+
+## Fitted curves
+
+We also note that the curve $logS = -4 \times 10^{-4}t^2$ (black dotted line) is a much better fit than the curve $logS = -4 * 10^{-5}t^2$ (red dotted line) reported in the paper, suggesting that the exponent from the equation reported in the paper is incorrect. Let's take a look:
+
+```{r, fig.height = 6, fig.width = 4}
+fig1 + 
+  stat_function(fun = function(t) -4 * 10^{-5} *t^2, linetype="longdash", color="red")
 ```
 
 
+## Conclusions
 
-Now, we recreate Figure 1 from Knudson and Strons, 1972 
-```{r}
-w2 <- w %>%
-  arrange(side, -age_at_dx) %>%
-  group_by(side) %>%
-  mutate(idx_sum = 1 / length(side)) %>%
-  mutate(prop_of_tot = cumsum(idx_sum))
+- This vignette highlights issues with reproducibility in a highly cited scientific manuscript
 
-```
+- Figure 1 from Knusdon 1971 is mostly reproducibile, with a few key exceptions:  
+
+  - Inconsistencies between the data reported in Table 1 and the data plotted in Figure 1 include 3 missing data points from Figure 1, partly due to an x-axis that was not sufficiently wide.
+
+  - The fitted curve for the unilateral cases has an error in the exponent.
+
+- These inconsistencies do not change the conclusions of this paper.
+
+- Peer review is important! Notice that this paper was ['communicated'](https://www.pnas.org/content/106/37/15518) to PNAS. This means that it was 'believed... (by a NAS member)... to be of sufficient significance to warrant publication.' Basically, this paper did not undergo standard peer review, which opens the door for the unchecked mistakes we observed.
+(Fortunately, PNAS [discontinued communicated manuscripts](https://www.pnas.org/content/106/37/15518) in 2010)
 
