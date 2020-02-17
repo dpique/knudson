@@ -7,7 +7,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-## Revisiting Knudson's 2 Hit Hypothesis: A Lesson in Data Reproducibility"
+## Revisiting Knudson's 2 Hit Hypothesis: A Lesson in Data Reproducibility
 
 Knudson's ["Mutation and cancer: statistical study of retinoblastoma"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC389051/) (1971) forms the basis for the 2-hit hypothesis in cancer and has 8000+ citations in the biomedical literature.
 
@@ -166,7 +166,7 @@ If we look closely, there are 3 data points (highlighted with red circles) in th
   
   - Note that in the original figure, the x-axis stops at 60, which can explain for the first two missing data points. Perhaps Knudson intentionally excluded these two data points whose y value equals 0, as plotting a 0 value on a log scale is difficult (because log(0) is undefined). 
   
-  - For some reason, in the reproduced plot, R plots the top half of these two data points, when really they should not be showing up here at 0.01 (their y value equals 0).
+  - For some reason, in the reproduced plot, R plots the top half of these two data points, when really they should not be showing up here at 0.01 (their y value equals 0 on a linear scale, and is undefined on a log scale).
 
   - A third data point for unilateral retinoblastoma patient 08997, age 47 months, is also missing. However, the reason why this data point is missing is unclear.
 
