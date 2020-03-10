@@ -25,6 +25,7 @@ The vignette also serves as a reproducibility case study that attempts to recrea
     * `l_tum`:  the number of tumors in the left eye. * if unknown.
      
     * `family_hx`: Is there a family history of retinoblastoma? If so, lists who was affected.
+    
     * `side`: Was the retinoblastoma unilateral (unilat) or bilateral (bilat)
     
   
@@ -35,6 +36,8 @@ The vignette also serves as a reproducibility case study that attempts to recrea
 devtools::install_github("dpique/knudson",
     build_opts=c("--no-resave-data", "--no-manual"),
     build_vignettes=TRUE)
+
+library(knudson)
 
 ## open the vignette
 vignette("knudson")
